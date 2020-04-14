@@ -49,7 +49,7 @@ Contents
    Changelog <changes>
 ..   Module Reference <api/modules>
 .. automodule:: psman.skeleton
-.. .. argparse::
+.. argparse::
    :filename: ../psman/skeleton.py
    :func: get_parser
    :prog: psman

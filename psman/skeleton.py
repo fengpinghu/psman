@@ -24,11 +24,13 @@ import multiprocessing
 
 
 from psman import __version__
-from psman import netio
-from psman import zabbix
+
+#from psman import netio
+#from psman import iotop
+#from psman import zabbix
+
 from psman import byteshuman 
 from psman import utils
-from psman import iotop
 from psman import ps
 
 
@@ -161,8 +163,8 @@ def main(args):
     _logger.setLevel(args.loglevel)
     ps._logger.setLevel(args.loglevel)
     ps._logger.addHandler(fh)
-    netio._logger.setLevel(args.loglevel)
-    netio._logger.addHandler(fh)
+#    netio._logger.setLevel(args.loglevel)
+#    netio._logger.addHandler(fh)
 
     
     _logger.debug("Starting psman...")
@@ -202,7 +204,7 @@ def main(args):
             byteshuman.bytes2human(mem.total),
             byteshuman.bytes2human(eval(cfg['mem_threshold'])) )
 
-
+    commet='''
     # start nethogs data collection thread
     netio.start( args.n )
 
@@ -347,7 +349,7 @@ def main(args):
                    'user: ' + i['user'],
                    'name: ' + i['ps_comm'][:25]))
  
-
+'''
     #
     #  process pstable data
     ps.get_pstable( cfg['exemptUsers'],
@@ -559,7 +561,8 @@ def main(args):
                                 To=['fengping@email.unc.edu'],
                                 From=cfg['msg_from'],
                                 Cc=[],
-                                subj=cfg['msg_subj'])
+                                subj=cfg['msg_subj'],
+                                smtpHost=cfg['smtpHost'])
                 # internal notification
                 utils.notification(
                                 text_internal,
@@ -567,7 +570,8 @@ def main(args):
                                 To=['fengping@email.unc.edu'],
                                 From=cfg['msg_from'],
                                 Cc=[],
-                                subj=cfg['msg_subj'])
+                                subj=cfg['msg_subj'],
+                                smtpHost=cfg['smtpHost'])
 
 
     _logger.info("Script ends here")
