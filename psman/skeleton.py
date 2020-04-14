@@ -1,14 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-psman manages user processes in a shared cluster login node.
-It checks resource usages of processes and take actions on processes 
-that are deemed to be a hogging process. 
-
-Resources checked includes CPU, Memory, and IO.
-  
-Actions includes notifications to the operations team, kill a process or use
-cgroup to limit resources comsumption 
+psman is process management on a shared host(e.g. cluster login nodes).
+It identifies hogging process in terms of cpu, memory and IO consumptions 
+with configurable thresholds and take actions againt them. Actions include 
+terminating the process, sending notifications to the operations team, end 
+user as well as dynamically adjusting cgroup settings to limit the 
+impact of hogging processes.
 
 """
 from __future__ import division, print_function, absolute_import
@@ -62,13 +60,13 @@ def get_parser():
     parser.add_argument(
         '-z',
         dest="z",
-        help="zabbix history of past x minutes",
+        help="zabbix history of past x minutes(net bandwidth data)",
         default=2,
         type=int)
     parser.add_argument(
         '-n',
         dest="n",
-        help="collect packet for x seconds",
+        help="collect io data for x seconds",
         default=4,
         type=int)
     parser.add_argument(
