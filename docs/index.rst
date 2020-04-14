@@ -48,7 +48,7 @@ Contents
    Authors <authors>
    Changelog <changes>
 ..   Module Reference <api/modules>
-.. automodule:: psman.skeleton
+.. .. automodule:: psman.skeleton
 .. argparse::
    :filename: ../psman/skeleton.py
    :func: get_parser
