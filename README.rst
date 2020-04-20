@@ -19,14 +19,15 @@ impact of hogging processes.
 It can run as a cron to periodically enforcing the rules or run as an command
 to inspect the top resource consuming processes and users.
 
-    Typical usage example:
-    #list procs that exceeds configured threshold
+.. code-block:: shell-session
+
+    # 1) list procs that exceeds configured threshold
     psman
-    # list top resource cosuming procs excludeing the exempted ones
+    # 2) list top resource cosuming procs excludeing the exempted ones
     psman -t
-    #list top resource consuming procs including the exempted ones
+    # 3) list top resource consuming procs including the exempted ones
     psman -t -i
-    #take configured actions on the procs that exceeds configured thresholds
+    # 4) take configured actions on the procs that exceeds configured thresholds
     psman -v --no-noop
 
 
