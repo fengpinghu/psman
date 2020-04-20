@@ -36,7 +36,7 @@ import yaml
 
 from psman import __version__
 
-from psman import netio
+#from psman import netio
 from psman import iotop
 from psman import zabbix
 
@@ -175,8 +175,8 @@ def main(args):
     _logger.setLevel(args.loglevel)
     ps._logger.setLevel(args.loglevel)
     ps._logger.addHandler(fh)
-    netio._logger.setLevel(args.loglevel)
-    netio._logger.addHandler(fh)
+    #netio._logger.setLevel(args.loglevel)
+    #netio._logger.addHandler(fh)
 
 
     _logger.debug("Starting psman...")
@@ -215,7 +215,7 @@ def main(args):
                  byteshuman.bytes2human(mem.available),
                  byteshuman.bytes2human(mem.total),
                  byteshuman.bytes2human(eval(cfg['mem_threshold'])))
-
+    comments="""
     # start nethogs data collection thread
     netio.start(args.n)
 
@@ -359,7 +359,7 @@ def main(args):
                     "%(value).1f %(symbol)sbps"),
                 'user: ' + i['user'],
                 'name: ' + i['ps_comm'][:25]))
-
+"""
     #
     #  process pstable data
     ps.get_pstable(cfg['exemptUsers'],
