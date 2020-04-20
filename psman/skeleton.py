@@ -11,7 +11,6 @@ impact of hogging processes.
 It can run as a cron to periodically enforcing the rules or run as an command
 to inspect the top resource consuming processes and users.
 
-    Typical usage example:
     #list procs that exceeds configured threshold
     psman
     # list top resource cosuming procs excludeing the exempted ones
@@ -63,8 +62,9 @@ def get_parser():
       :obj:`argparse.Namespace`: command line parameters namespace
     """
     parser = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter)
+            usage=__doc__)
+        #description=__doc__)
+        #formatter_class=argparse.RawDescriptionHelpFormatter)
         #description=("check IO status. Network usage per interface is get "
         #      "from zabbix. Network usage per process based on libpcap and nethogs")
     parser.add_argument(
