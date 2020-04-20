@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""bytes2human and human2bytes based on a recipe found here
+
+http://code.activestate.com/recipes/578019/
+
+"""
+
 SYMBOLS = {
     'customary'     : ('B', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y'),
     'customary_ext' : ('byte', 'kilo', 'mega', 'giga', 'tera', 'peta', 'exa',
