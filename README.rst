@@ -23,7 +23,7 @@ to inspect the top resource-consuming processes and users.
 
     # 1) list procs that exceeds configured threshold
     psman
-    # 2) list top resource cosuming procs excludeing the exempted ones
+    # 2) list top resource consuming procs excluding the exempted ones
     psman -t
     # 3) list top resource consuming procs including the exempted ones
     psman -t -i
