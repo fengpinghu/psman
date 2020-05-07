@@ -13,7 +13,7 @@ to inspect the top resource consuming processes and users.
 
     #list procs that exceeds configured threshold
     psman
-    # list top resource cosuming procs excludeing the exempted ones
+    # list top resource consuming procs excluding the exempted ones
     psman -t
     #list top resource consuming procs including the exempted ones
     psman -t -i
@@ -27,11 +27,14 @@ import argparse
 import sys
 import logging
 import time
+import datetime
 import os
 import multiprocessing
 import psutil
 import yaml
+import re
 
+from file_read_backwards import FileReadBackwards
 
 from psman import __version__
 
@@ -61,8 +64,7 @@ def get_parser():
     Returns:
       :obj:`argparse.Namespace`: command line parameters namespace
     """
-    parser = argparse.ArgumentParser(
-            usage=__doc__)
+    parser = argparse.ArgumentParser(usage=__doc__)
         #description=__doc__)
         #formatter_class=argparse.RawDescriptionHelpFormatter)
         #description=("check IO status. Network usage per interface is get "
@@ -167,7 +169,7 @@ def main(args):
     # set global logging level to WARN
     setup_logging(logging.WARN)
 
-    fh = logging.FileHandler('/tmp/psman.log')
+    fh = logging.FileHandler(cfg['logfile'])
     formatter = logging.Formatter(
         '[%(asctime)s] %(name)-12s: %(levelname)-8s %(message)s')
     fh.setFormatter(formatter)
@@ -215,6 +217,7 @@ def main(args):
                  byteshuman.bytes2human(mem.available),
                  byteshuman.bytes2human(mem.total),
                  byteshuman.bytes2human(eval(cfg['mem_threshold'])))
+    actions = []
     comments="""
     # start nethogs data collection thread
     netio.start(args.n)
@@ -239,9 +242,9 @@ def main(args):
                 key = 'net.if.{}[{}]'.format(k, d)
                 itemid = z.getitemIDbyKey(key, hostid)
 
-            if itemid:
-                v = z.getitemHistoryAvg(itemid, hostid, t_from, now, history=3)
-                devio[d][k] = v
+                if itemid:
+                    v = z.getitemHistoryAvg(itemid, hostid, t_from, now, history=3)
+                    devio[d][k] = v
 
     if args.top:
         #for k,v in devio.iteritems():
@@ -254,7 +257,6 @@ def main(args):
                 print ('{:<10} incoming: {:>10}'.format(v,
                   byteshuman.bytes2human(d.get('in', 0),
                    "%(value).1f %(symbol)sbps")))
-        print ('-'*70)
 
 
     # wait for data collection to finish
@@ -264,108 +266,102 @@ def main(args):
     #  process net io data
 
     # consolidate
-    procs = [{i.contents.pid:{'recv_kbs':i.contents.recv_kbs,
-                              'sent_kbs':i.contents.sent_kbs,
-                              'uid':i.contents.uid,
-                              'name':i.contents.name,
-                              'dev':i.contents.device_name.decode('ascii')}}
-             for i in netio.procs]
-    # remove duplicates and build dicts of in and out procs
-    netio_table_in = {}
-    netio_table_out = {}
-    for i in procs:
-        k, v = i.items()[0]
-        proc = netio_table_in.get(k)
-        if proc:
-            v_in = proc['recv_kbs']
-        else:
-            v_in = 0
-        proc = netio_table_out.get(k)
-        if proc:
-            v_out = proc['sent_kbs']
-        else:
-            v_out = 0
-        if v['recv_kbs'] > v_in:
-            netio_table_in[k] = v
-        if v['sent_kbs'] > v_out:
-            netio_table_out[k] = v
+    procs1 = [{'recv_kbs':i.contents.recv_kbs,
+               'sent_kbs':i.contents.sent_kbs,
+               'uid':i.contents.uid,
+               'pid':i.contents.pid,
+               'name':i.contents.name,
+               'dev':i.contents.device_name.decode('ascii')}
+              for i in netio.procs]
 
     for d in dev:
-        procs_in = {k:v for k, v in netio_table_in.iteritems()
-                    if v['dev'] == d}
-        procs_out = {k:v for k, v in netio_table_out.iteritems()
-                     if v['dev'] == d}
-        if args.top:
-            print('top {} outgoing:'.format(d))
-        for i in sorted(procs_out,
-                        key=lambda k: procs_out[k]['sent_kbs'],
-                        reverse=True)[:3]:
+        procs_d = [p for p in procs1 if p['dev'] == d]
+        for i in ['sent_kbs', 'recv_kbs']:
             if args.top:
-                print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
-                    'PID: ' + str(i),
-                    'sent: ',
-                    byteshuman.bytes2human(
-                        procs_out[i]['sent_kbs']*1024*8,
-                        "%(value).1f %(symbol)sbps"),
-                    'user: ' + utils.get_user_name(procs_out[i]['uid']),
-                    'name: ' + procs_out[i]['name'][:25]))
-        if args.top:
-            print ('-'*70)
-            print('top {} incoming:'.format(d))
-        for i in sorted(procs_in,
-                        key=lambda k: procs_in[k]['recv_kbs'],
-                        reverse=True)[:3]:
-            if args.top:
-                print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
-                    'PID: ' + str(i),
-                    'recv: ',
-                    byteshuman.bytes2human(
-                        procs_in[i]['recv_kbs']*1024*8,
-                        "%(value).1f %(symbol)sbps"),
-                    'user: ' + utils.get_user_name(procs_in[i]['uid']),
-                    'name: ' + procs_in[i]['name'][:25]))
-        if args.top:
-            print ('-'*70)
+                print ('-'*70)
+                print ('top {} {}'.format(d, i))
+            procs_sorted = sorted(procs_d,
+                                  key=lambda k: float(k[i]),
+                                  reverse=True)
+            procs_sorted_keys = [p['pid'] for p in procs_sorted]
+            procs_sorted_dupremoved = []
+            for j in range(len(procs_sorted)):
+                if procs_sorted[j]['pid'] not in procs_sorted_keys[:j]:
+                    procs_sorted_dupremoved.append(procs_sorted[j])
+            value_map = {'recv_kbs': 'in', 'sent_kbs': 'out'}
+            v = value_map[i]
+            for p in procs_sorted_dupremoved[:3]:
+                if devio.get(d) and devio.get(d).get(v, 0) > eval(cfg['netio_threshold_dev']):
+                    if ps.is_ldap_user(str(p['uid'])) and \
+                       p[i]*1024*8 > eval(cfg['netio_threshold_ps']):
+                        #print ('{},{}'.format( p['uid'], p[i]) )
+                        actions.append({'action': 'internal_notification',
+                                        'dev': d,
+                                        'bw_dev': byteshuman.bytes2human( devio.get(d).get(v, 0),
+                                                       "%(value).1f %(symbol)sbps"),
+                                        'pid': p['pid'],
+                                        'comm': p['name'],
+                                        'user': utils.get_user_name(p['uid']),
+                                        'bw_ps': byteshuman.bytes2human(
+                                                     p[i]*1024*8,
+                                                     "%(value).1f %(symbol)sbps"),
+                                        'reason': v})
+                if args.top:
+                    print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
+                        'PID: ' + str(p['pid']),
+                        'sent: ',
+                        byteshuman.bytes2human(
+                            p[i]*1024*8,
+                            "%(value).1f %(symbol)sbps"),
+                        'user: ' + utils.get_user_name(p['uid']),
+                        'name: ' + p['name'][:25]))
 
     #
     #  process disk io data
-    if args.top:
-        print('top disk read:')
-    for i in sorted(iotop.procs,
-                    key=lambda k: float(k['read_kbs']),
-                    reverse=True)[:3]:
+    for i in ['read_kbs', 'write_kbs']:
         if args.top:
-            print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
-                'PID: ' + str(i['pid']),
-                'read: ',
-                byteshuman.bytes2human(
-                    float(i['read_kbs'])*1024*8,
-                    "%(value).1f %(symbol)sbps"),
-                'user: ' + i['user'],
-                'name: ' + i['ps_comm'][:25]))
+            print ('-'*70)
+            print ('top disk {}'.format(i))
+        value_map = {'read_kbs': 'in', 'write_kbs': 'out'}
+        #value_map1 = {'read_kbs': '', 'write_kbs': 'out'}
+        value = value_map[i]
+        exceeded = [v for k, v in devio.iteritems() if v.get(value, 0) \
+                    > eval(cfg['netio_threshold_dev'])]
+        found = [a for a in actions if a['reason'] == value] 
+        for j in sorted(iotop.procs,
+                        key=lambda k: float(k[i]),
+                        reverse=True)[:3]:
+            if exceeded and not found:
+                if ps.is_ldap_user(str(j['user'])) and \
+                   float(j[i])*1024*8 > eval(cfg['netio_threshold_ps']):
+                    #print ('{},{}'.format( p['uid'], p[i]) )
+                    actions.append({'action': 'internal_notification',
+                                    'dev': 'disk',
+                                    'bw_dev': byteshuman.bytes2human( exceeded[0].get(value, 0),
+                                                   "%(value).1f %(symbol)sbps"),
+                                    'pid': j['pid'],
+                                    'comm': j['ps_comm'],
+                                    'user': utils.get_user_name(j['user']),
+                                    'bw_ps': byteshuman.bytes2human(
+                                                 float(j[i])*1024*8,
+                                                 "%(value).1f %(symbol)sbps"),
+                                    'reason': value})
+            if args.top:
+                print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
+                    'PID: ' + str(j['pid']),
+                    i,
+                    byteshuman.bytes2human(
+                        float(j[i])*1024*8,
+                        "%(value).1f %(symbol)sbps"),
+                    'user: ' + j['user'],
+                    'name: ' + j['ps_comm'][:25]))
 
-    if args.top:
-        print ('-'*70)
-        print('top disk write:')
-    for i in sorted(iotop.procs,
-                    key=lambda k: float(k['write_kbs']),
-                    reverse=True)[:3]:
-        if args.top:
-            print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
-                'PID: ' + str(i['pid']),
-                'write: ',
-                byteshuman.bytes2human(
-                    float(i['write_kbs'])*1024*8,
-                    "%(value).1f %(symbol)sbps"),
-                'user: ' + i['user'],
-                'name: ' + i['ps_comm'][:25]))
 """
     #
     #  process pstable data
     ps.get_pstable(cfg['exemptUsers'],
                    cfg['exemptProcess'],
                    exemptParentProcess)
-    actions = []
     actionlimit = cfg['killtop']
     hog_pids = []
 
@@ -505,6 +501,7 @@ def main(args):
 
     #if len(actions):
     killedlist = []
+    text_combined = ['', '']
     for action in actions:
         print(action)
         if action['action'] == 'kill' and args.no_noop:
@@ -559,15 +556,71 @@ def main(args):
                                    subj=cfg['msg_subj'],
                                    smtpHost=cfg['smtpHost'])
                 # internal notification
-                utils.notification(text_internal,
-                                   To=msg_cc,
-                                   From=cfg['msg_from'],
-                                   Cc=[],
-                                   subj=cfg['msg_subj'],
-                                   smtpHost=cfg['smtpHost'])
+                #utils.notification(text_internal,
+                #                   To=cfg['msg_cc'],
+                #                   From=cfg['msg_from'],
+                #                   Cc=[],
+                #                   subj=cfg['msg_subj'],
+                #                   smtpHost=cfg['smtpHost'])
+                text_combined[0] += text_internal + "\n" 
+
+        elif action['action'] == 'internal_notification' and args.no_noop:
+            if not _notification_sent(cfg['logfile'], action['user'], action['pid'],
+                                      action['comm'], action['reason'], now, 3600):
+
+                text_internal = "IO high on login node: {0}, " \
+                                "dev: {1}, " \
+                                "bw_dev: {2}, " \
+                                "top process - user: {3}, command: {4}, pid: {5}, bw_ps: {6}".format(
+                                      nodename, action['dev'], action['bw_dev'], action['user'],
+                                      action['comm'], action['pid'], action['bw_ps'])
+                text_combined[1] += text_internal + "\n" 
+                #utils.notification(text_internal,
+                #                   To=cfg['msg_cc'],
+                #                   From=cfg['msg_from'],
+                #                   Cc=[],
+                #                   subj=cfg['msg_subj'],
+                #                   smtpHost=cfg['smtpHost'])
+                
+                _logger.warning("Internal Notification sent - User: %s, pid: %s, " \
+                         "cmd: %s, reason: %s", action['user'], action['pid'], 
+                         action['comm'], action['reason'])
+    # send internal notifications
+    for msg in text_combined:
+        if msg and args.no_noop:
+            utils.notification(msg,
+                               To=cfg['msg_cc'],
+                               From=cfg['msg_from'],
+                               Cc=[],
+                               subj=cfg['msg_subj'],
+                               smtpHost=cfg['smtpHost'])
 
 
     _logger.info("Script ends here")
+
+def _notification_sent(logfile, user, pid, cmd, reason, now, secs):
+
+    prog_t = re.compile(r'^\[(.*),.*\] .*')
+    line = "(Internal Notification sent - User: {}, pid: {}, " \
+                    "cmd: {}, reason: {})".format(user, pid, cmd, reason)
+    prog_n = re.compile(line)
+    print(line)
+    ret = False
+    with FileReadBackwards(logfile, encoding="utf-8") as frb:
+        for l in frb:
+            result = prog_t.match(l)
+            if result:
+                t = time.mktime(datetime.datetime.strptime(
+                              result.group(1), "%Y-%m-%d %H:%M:%S").timetuple())
+                #print(t)
+                if t < now - secs:
+                    break
+            result = prog_n.search(l)
+            if result:
+                ret = True
+                #print (result.groups())
+    print (ret)
+    return ret
 
 def run():
     """Entry point for console_scripts

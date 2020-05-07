@@ -21,7 +21,7 @@ _monitor_thread = None
 def get_pstable(t):
     global procs
     process = subprocess.Popen(
-        ['iotop', '-n', '2', '-o', '-b', '-d', str(t), '-P', '-k', '-qqq'],
+        ['/usr/sbin/iotop', '-n', '2', '-o', '-b', '-d', str(t), '-P', '-k', '-qqq'],
         stdout=subprocess.PIPE)
     for ps in process.stdout.readlines():
         ps = ps.strip()

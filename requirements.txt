@@ -5,3 +5,4 @@ psutil
 sphinx-argparse
 PyYAML
 pyzabbix
+file_read_backwards

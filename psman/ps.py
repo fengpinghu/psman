@@ -44,14 +44,14 @@ def kill_process(pstable, pid):
 
     ret = pidtokill
 
-    #try:
-    #    if killpg:
-    #        os.killpg(int(pidtokill),signal.SIGKILL)
-    #    else:
-    #        os.kill(int(pidtokill),signal.SIGKILL)
-    #except:
-    #    logging.info("failed to kill -- p(g)id:%s",pidtokill)
-    #    ret= False
+    try:
+        if killpg:
+            os.killpg(int(pidtokill),signal.SIGKILL)
+        else:
+            os.kill(int(pidtokill),signal.SIGKILL)
+    except:
+        _logging.warning("failed to kill -- p(g)id:%s", pidtokill)
+        ret= False
 
     if ret != False:
         _logger.info("hogging process killed -- pid:%s", pidtokill)

@@ -172,6 +172,8 @@ procs = []
 def start(t=2):
     """ start the data collection thread
     """
+    # The entire Python program exits when no alive non-daemon threads are left.
+    _monitor_thread.daemon = True
     _monitor_thread.start()
     threading.Timer(t, _lib.nethogsmonitor_breakloop).start()
 
@@ -181,9 +183,20 @@ def wait(t=2):
     """
     done = False
     w = 0
+    tried_breakloop = False
     while not done:
         _monitor_thread.join(0.3)
         w += 0.3
         done = not _monitor_thread.is_alive()
-        if w > t + 0.3:
+        if w > t + 1:
             _logger.warning("netio thread waited longer than should %d", w)
+            if tried_breakloop == False:
+                _logger.warning("Call nethogsmonitor_breakloop")
+                _lib.nethogsmonitor_breakloop()
+                tried_breakloop = True
+            else:
+                if not done:
+                    _logger.warning("now let's stop waiting")
+                break
+
+
