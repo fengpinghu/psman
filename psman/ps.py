@@ -10,7 +10,8 @@ import subprocess
 import re
 import shlex
 import logging
-
+import os
+import signal
 
 procs = []
 
@@ -49,8 +50,8 @@ def kill_process(pstable, pid):
             os.killpg(int(pidtokill),signal.SIGKILL)
         else:
             os.kill(int(pidtokill),signal.SIGKILL)
-    except:
-        _logging.warning("failed to kill -- p(g)id:%s", pidtokill)
+    except Exception as e:
+        _logger.warning("failed to kill -- p(g)id:%s, exception:%s", pidtokill,e)
         ret= False
 
     if ret != False:
