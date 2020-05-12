@@ -22,13 +22,13 @@ pstable = {}
 # user processses with exempted process excluded
 pstable_e = {}
 
-UID, PID, PPID, PGID, RSS, CPUTIME, COMM = range(7)
+UID, PID, PPID, PGID, RSS, CPUTIME, THCOUNT, COMM = range(8)
 
 _logger = logging.getLogger(__name__)
 
 def kill_process(pstable, pid):
     """kill the process """
-    (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+    (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
             tuple(pstable[pid])
     # if the process group id is also in the pstable, ok to kill
     # otherwise just try the pid
@@ -60,7 +60,7 @@ def kill_process(pstable, pid):
 def walkto_root(pstable, exemptParentProcess, pid):
     """recursively check if parent process is ok"""
 
-    (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+    (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
             tuple(pstable[pid])
 
     #logging.debug("pid:%s,parent:%s,program:%s",ps_pid,ps_ppid,ps_comm)
@@ -78,7 +78,7 @@ def walkto_root(pstable, exemptParentProcess, pid):
 
 def is_exempted_ps(pstable, exeps, exeps_parent, pid):
     exempted = False
-    (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+    (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
             tuple(pstable[pid])
     if ps_comm in exeps:
         exempted = True
@@ -102,12 +102,12 @@ def get_pstable(exemptUsers=[], exeps=[], exeps_parent=[]):
     global pstable
     global pstable_e
 
-    process = subprocess.Popen(['ps', '-eo', "user,pid,ppid,pgid,rss,time,comm"],
+    process = subprocess.Popen(['ps', '-eo', "user,pid,ppid,pgid,rss,time,thcount,comm"],
                                stdout=subprocess.PIPE)
     for ps in process.stdout.readlines():
 
-        ps_a = [x.strip() for x in re.sub(r'\s+', ' ', ps).split(' ', 6)]
-        (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+        ps_a = [x.strip() for x in re.sub(r'\s+', ' ', ps).split(' ', 7)]
+        (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                 tuple(ps_a)
 
         if ps_pid == 'PID':

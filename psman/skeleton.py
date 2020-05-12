@@ -375,7 +375,7 @@ def main(args):
         for pid in sorted(table,
                           key=lambda k: table[k][ps.CPUTIME],
                           reverse=True)[:3]:
-            (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+            (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                        tuple(table[pid])
             print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
                 'PID: ' + str(pid),
@@ -389,7 +389,7 @@ def main(args):
         for pid in sorted(table,
                           key=lambda k: int(table[k][ps.RSS]),
                           reverse=True)[:3]:
-            (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+            (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                        tuple(table[pid])
             print('{:<10}  {:<6}  {:>10}  {:<15}  {:<25}'.format(
                 'PID: ' + str(pid),
@@ -406,7 +406,7 @@ def main(args):
     for pid in sorted(hog_pids,
                       key=lambda k: ps.pstable[k][ps.CPUTIME],
                       reverse=True):
-        (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+        (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                     tuple(ps.pstable[pid])
         _logger.info("hogging process found -- user: %s, cputime: %d, " \
                      "cmd: %s, pid: %s", ps_uid, ps_time, ps_comm, ps_pid)
@@ -420,8 +420,9 @@ def main(args):
 
     # only try to find top user when do show top or when systems is under
     # load and no individual hog pid is found
-    if (not hog_pids and float(load1) > float(cfg['loadavgthreshhold'])) or \
-        args.top:
+    #if (not hog_pids and float(load1) > float(cfg['loadavgthreshhold'])) or \
+    #    args.top:
+    if True:
 
         #logging.info(
         #  "no single process above cputime: %d is found",
@@ -434,19 +435,59 @@ def main(args):
             table = ps.pstable_e
 
         users = [v[ps.UID] for k, v in table.iteritems()]
+        users = list(set(users))
         user_cputs = [(u, sum([v[ps.CPUTIME] for k, v
                                in table.iteritems() if v[ps.UID] == u]))
-                      for u in list(set(users))]
+                      for u in users]
+        user_procs = [(u,
+                       sum([1 for k, v
+                            in table.iteritems() if v[ps.UID] == u]),
+                       sum([int(v[ps.THCOUNT]) for k, v
+                            in table.iteritems() if v[ps.UID] == u])
+
+                      ) for u in users]
+
+        if args.top:
+            print ('-'*70)
+            print('top users in procs count:')
+        # top 3 cpu  consumer
+        for u in sorted(user_procs, key=lambda k: k[1], reverse=True)[:3]:
+            if args.top:
+                print('{:<15}  {:<9}  {:>10} '.format(
+                    'user: ' + u[0],
+                    'procs: ',
+                    str(u[1])))
+
+        if args.top:
+            print ('-'*70)
+            print('top users in thread count:')
+        # top 3 cpu  consumer
+        for u in sorted(user_procs, key=lambda k: k[2], reverse=True)[:3]:
+            if args.top:
+                print('{:<15}  {:<9}  {:>10} '.format(
+                    'user: ' + u[0],
+                    'thread: ',
+                    str(u[2])))
+            if u[2] > cfg['thc_threshhold']:
+                actions.append({'action': 'internal_notification',
+                                'user': u[0],
+                                'procs': u[1],
+                                'threads': u[2],
+                                'reason': 'threadcount exceeded',
+                                'pid': '-',
+                                'comm': '-'})
+                _logger.info("user runs many threads -- user: %s, procs: %d, " \
+                             "threads: %d, limit: %d", u[0], u[1], u[2], cfg['thc_threshhold'])
 
         #print user_cputs
         if args.top:
             print ('-'*70)
-            print('top cpu users:')
+            print('top users in cputime:')
         # top 3 cpu  consumer
         for u_t in sorted(user_cputs, key=lambda k: k[1], reverse=True)[:3]:
             #print (u_t)
             if args.top:
-                print('{:<10}  {:<6}  {:>10} '.format(
+                print('{:<15}  {:<9}  {:>10} '.format(
                     'user: ' + u_t[0],
                     'cputime: ',
                     str(u_t[1]) + ' s'))
@@ -459,7 +500,7 @@ def main(args):
                 pid = sorted(pids,
                              key=lambda k: ps.pstable_e[k][ps.CPUTIME],
                              reverse=True)[0]
-                (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+                (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                         tuple(ps.pstable[pid])
                 #_logger.info("top cpu comsumer -- user: %s, cputime: %d",
                 #            u_t[0],u_t[1])
@@ -485,7 +526,7 @@ def main(args):
                       int(ps.pstable_e[p][ps.RSS])*1024 > eval(cfg['mem_threshold_p'])]
 
     for pid in pidstokill:
-        (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+        (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                 tuple(ps.pstable[pid])
         _logger.info("hogging process found -- user: %s, memory: %d, " \
                      "cmd: %s, pid: %s", ps_uid,
@@ -511,7 +552,7 @@ def main(args):
             if pskilled and (pskilled not in killedlist):
                 killedlist.append(pskilled)
 
-                (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_comm) = \
+                (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                                         tuple(ps.pstable[pskilled])
 
                 if action['reason'] == 'cpu':
@@ -567,8 +608,14 @@ def main(args):
         elif action['action'] == 'internal_notification' and args.no_noop:
             if not _notification_sent(cfg['logfile'], action['user'], action['pid'],
                                       action['comm'], action['reason'], now, 3600):
-
-                text_internal = "IO high on login node: {0}, " \
+                if action['reason'] == 'threadcount exceeded':
+                    text_internal = "High number of threads for user: {0} on login node: {1}, " \
+                                "process count: {2}, " \
+                                "thread count: {3} ".format(
+                                      action['user'], nodename,
+                                      action['procs'], action['threads'])
+                else:
+                    text_internal = "IO high on login node: {0}, " \
                                 "dev: {1}, " \
                                 "bw_dev: {2}, " \
                                 "top process - user: {3}, command: {4}, pid: {5}, bw_ps: {6}".format(
@@ -604,7 +651,7 @@ def _notification_sent(logfile, user, pid, cmd, reason, now, secs):
     line = "(Internal Notification sent - User: {}, pid: {}, " \
                     "cmd: {}, reason: {})".format(user, pid, cmd, reason)
     prog_n = re.compile(line)
-    print(line)
+    #print(line)
     ret = False
     with FileReadBackwards(logfile, encoding="utf-8") as frb:
         for l in frb:
@@ -619,7 +666,7 @@ def _notification_sent(logfile, user, pid, cmd, reason, now, secs):
             if result:
                 ret = True
                 #print (result.groups())
-    print (ret)
+    #print (ret)
     return ret
 
 def run():
