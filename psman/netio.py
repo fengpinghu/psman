@@ -19,6 +19,7 @@ before processing the data to make sure the data collection is finished.
 import ctypes
 import threading
 import logging
+from multiprocessing import Process, Queue
 
 
 _logger = logging.getLogger(__name__)
@@ -147,7 +148,7 @@ def network_activity_callback(action, data):
     # type, and I don't expect it to do so.
     action_type = Action.MAP.get(action, 'Unknown')
     if action_type == 'SET':
-        procs.append(data)
+        _procs.append(data)
 #    print('Action: {}'.format(action_type))
 #    print('Record id: {}'.format(data.contents.record_id))
 #    print('Name: {}'.format(data.contents.name))
@@ -167,9 +168,11 @@ _monitor_thread = threading.Thread(
     target=run_monitor_loop, args=(_lib, device_names,)
 )
 
+
+_procs = []
 procs = []
 
-def start(t=2):
+def start1(t=2):
     """ start the data collection thread
     """
     # The entire Python program exits when no alive non-daemon threads are left.
@@ -178,7 +181,7 @@ def start(t=2):
     threading.Timer(t, _lib.nethogsmonitor_breakloop).start()
 
 
-def wait(t=2):
+def wait1(t=2):
     """ wait for the data collection thread to finish
     """
     done = False
@@ -199,4 +202,40 @@ def wait(t=2):
                     _logger.warning("now let's stop waiting")
                 break
 
+
+def worker(q, t = 2):
+    global procs
+    lib = ctypes.CDLL(LIBRARY_NAME)
+    threading.Timer(t, lib.nethogsmonitor_breakloop).start()
+    run_monitor_loop(lib,device_names)
+
+    procs = [{'recv_kbs':i.contents.recv_kbs,
+               'sent_kbs':i.contents.sent_kbs,
+               'uid':i.contents.uid,
+               'pid':i.contents.pid,
+               'name':i.contents.name,
+               'dev':i.contents.device_name.decode('ascii')}
+              for i in _procs]
+
+    q.put(procs)
+
+p = None
+q = None
+def start(t=2):
+  global p
+  global q
+  q = Queue()
+  p = Process(target=worker, args=(q,t,))
+  p.start()
+
+def wait(t=2):
+    global procs
+    try:
+        procs = q.get(True, t+0.5)
+    except Exception as e:
+        _logger.info("no data received:%s",e)
+    p.join(0.1)
+    if p.is_alive():
+        _logger.warning("worker process still alive")
+        #p.terminate()
 

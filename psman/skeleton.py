@@ -30,7 +30,10 @@ import time
 import datetime
 import os
 import multiprocessing
+import daemon
+import lockfile
 import psutil
+import signal
 import yaml
 import re
 
@@ -80,6 +83,12 @@ def get_parser():
         default=2,
         type=int)
     parser.add_argument(
+        '-s',
+        dest="sleep",
+        help="sleep for x seconds between iterations",
+        default=10,
+        type=int)
+    parser.add_argument(
         '-n',
         dest="n",
         help="collect io data for x seconds",
@@ -92,6 +101,11 @@ def get_parser():
         default='/usr/local/etc/psmancfg.yaml')
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
+        '-d', "--daemon",
+        action="store_true",
+        help="run as daemon",
+        default=False)
+    group.add_argument(
         "-t", "--top",
         action="store_true",
         help="show top users even if they don't exceed threshold",
@@ -101,7 +115,7 @@ def get_parser():
         action="store_true",
         help="include exempted processes when show tops",
         default=False)
-    group.add_argument(
+    parser.add_argument(
         "--no-noop",
         action="store_true",
         help="not in noop mode, ps will be killed and notifications will be send",
@@ -179,8 +193,40 @@ def main(args):
     ps._logger.addHandler(fh)
     netio._logger.setLevel(args.loglevel)
     netio._logger.addHandler(fh)
+    if args.daemon == False:
+        psman_run(args, cfg)
+    else:
+        context = daemon.DaemonContext(
+            #working_directory='/var/lib/psman',
+            #umask=0o002,
+            pidfile=lockfile.FileLock('/var/run/psman.pid'),
+            )
+        
+        context.signal_map = {
+            #signal.SIGTERM: ,
+            signal.SIGHUP: 'terminate',
+            #signal.SIGUSR1: reload_program_config,
+            }
+        
+        #mail_gid = grp.getgrnam('mail').gr_gid
+        #context.gid = mail_gid
+        #important_file = open('spam.data', 'w')
+        #interesting_file = open('eggs.data', 'w')
+        context.files_preserve = [fh.stream,sys.stdout]
+
+        with context:
+            while True:
+                psman_run(args,cfg)
+                time.sleep(args.sleep)
+
+        context.close()
+        #except Exception as e:
+        #    _logger.warning("exception when start daemon: %e", e)
 
 
+def psman_run(args, cfg):
+    """psman steps
+    """
     _logger.debug("Starting psman...")
 
     # set load threshold to cpu count if it's 0
@@ -217,8 +263,8 @@ def main(args):
                  byteshuman.bytes2human(mem.available),
                  byteshuman.bytes2human(mem.total),
                  byteshuman.bytes2human(eval(cfg['mem_threshold'])))
-    #comments="""
     actions = []
+    #comments="""
     # start nethogs data collection thread
     netio.start(args.n)
 
@@ -266,14 +312,14 @@ def main(args):
     #  process net io data
 
     # consolidate
-    procs1 = [{'recv_kbs':i.contents.recv_kbs,
-               'sent_kbs':i.contents.sent_kbs,
-               'uid':i.contents.uid,
-               'pid':i.contents.pid,
-               'name':i.contents.name,
-               'dev':i.contents.device_name.decode('ascii')}
-              for i in netio.procs]
-
+    #procs1 = [{'recv_kbs':i.contents.recv_kbs,
+    #           'sent_kbs':i.contents.sent_kbs,
+    #           'uid':i.contents.uid,
+    #           'pid':i.contents.pid,
+    #           'name':i.contents.name,
+    #           'dev':i.contents.device_name.decode('ascii')}
+    #          for i in netio.procs]
+    procs1 = netio.procs
     for d in dev:
         procs_d = [p for p in procs1 if p['dev'] == d]
         for i in ['sent_kbs', 'recv_kbs']:

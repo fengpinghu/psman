@@ -6,3 +6,4 @@ psutil
 PyYAML
 pyzabbix
 file_read_backwards
+python-daemon
