@@ -231,7 +231,7 @@ def start(t=2):
 def wait(t=2):
     global procs
     try:
-        procs = q.get(True, t+0.5)
+        procs = q.get(True, t+2)
     except Exception as e:
         _logger.info("no data received:%s",e)
     p.join(0.1)
