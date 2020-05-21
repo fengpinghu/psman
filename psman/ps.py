@@ -103,6 +103,8 @@ def get_pstable(exemptUsers=[], exeps=[], exeps_parent=[]):
     global pstable
     global pstable_e
 
+    pstable_raw.clear()
+
     process = subprocess.Popen(['ps', '-eo', "user,pid,ppid,pgid,rss,time,thcount,comm"],
                                stdout=subprocess.PIPE)
     for ps in process.stdout.readlines():
