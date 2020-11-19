@@ -141,7 +141,7 @@ def run_monitor_loop(lib, devnames):
 
 
 def network_activity_callback(action, data):
-    global procs
+    global _procs
     #print(datetime.datetime.now().strftime('@%H:%M:%S.%f'))
 
     # Action type is either SET or REMOVE. I have never seen nethogs send an unknown action
@@ -205,6 +205,8 @@ def wait1(t=2):
 
 def worker(q, t = 2):
     global procs
+    global _procs
+    _procs = []
     lib = ctypes.CDLL(LIBRARY_NAME)
     threading.Timer(t, lib.nethogsmonitor_breakloop).start()
     run_monitor_loop(lib,device_names)
@@ -237,5 +239,5 @@ def wait(t=2):
     p.join(0.1)
     if p.is_alive():
         _logger.warning("worker process still alive")
-        #p.terminate()
+        p.terminate()
 

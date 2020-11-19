@@ -202,11 +202,11 @@ def main(args):
             pidfile=lockfile.FileLock('/var/run/psman.pid'),
             )
         
-        context.signal_map = {
+        #context.signal_map = {
             #signal.SIGTERM: ,
-            signal.SIGHUP: 'terminate',
+        #    signal.SIGHUP: 'terminate',
             #signal.SIGUSR1: reload_program_config,
-            }
+        #    }
         
         #mail_gid = grp.getgrnam('mail').gr_gid
         #context.gid = mail_gid
@@ -239,7 +239,7 @@ def psman_run(args, cfg):
         cfg['exemptUsers'] = cfg['exemptUsers']+m
 
     # sshd can't be exempted as a parent
-    exemptParentProcess = [x for x in cfg['exemptProcess'] if x not in ["sshd", "emacs"]]
+    exemptParentProcess = [x for x in cfg['exemptProcess'] if x not in ["sshd", "emacs", "screen","tmux"]]
 
 
     # where am I running at
@@ -611,7 +611,7 @@ def psman_run(args, cfg):
                         cfg['cputimelimit'],
                         byteshuman.bytes2human(eval(cfg['mem_threshold'])))
 
-                    text_internal = "process killed\nlogin node: {0}, " \
+                    text_internal = "process killed: {2}\nlogin node: {0}, " \
                                   "loadaverage: {1}, " \
                                   "process: {2}, pid: {3}, " \
                                   "user: {4}, cputime: {5}".format(
@@ -626,7 +626,7 @@ def psman_run(args, cfg):
                         cfg['loadavgthreshhold'],
                         cfg['cputimelimit'],
                         byteshuman.bytes2human(eval(cfg['mem_threshold'])))
-                    text_internal = "process killed\nlogin node: {0}, " \
+                    text_internal = "process killed: {2}\nlogin node: {0}, " \
                                   "loadaverage: {1}," \
                                   "process: {2}, pid: {3}, " \
                                   "user: {4}, rss:{5}".format(
@@ -694,9 +694,9 @@ def psman_run(args, cfg):
 def _notification_sent(logfile, user, pid, cmd, reason, now, secs):
 
     prog_t = re.compile(r'^\[(.*),.*\] .*')
-    line = "(Internal Notification sent - User: {}, pid: {}, " \
-                    "cmd: {}, reason: {})".format(user, pid, cmd, reason)
-    prog_n = re.compile(line)
+    line = "Internal Notification sent - User: {}, pid: {}, " \
+                    "cmd: {}, reason: {}".format(user, pid, cmd, reason)
+    prog_n = re.compile(re.escape(line))
     #print(line)
     ret = False
     with FileReadBackwards(logfile, encoding="utf-8") as frb:

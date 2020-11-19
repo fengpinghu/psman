@@ -20,6 +20,7 @@ _monitor_thread = None
 
 def get_pstable(t):
     global procs
+    procs = []
     process = subprocess.Popen(
         ['/usr/sbin/iotop', '-n', '2', '-o', '-b', '-d', str(t), '-P', '-k', '-qqq'],
         stdout=subprocess.PIPE)
