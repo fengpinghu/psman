@@ -31,7 +31,9 @@ import datetime
 import os
 import multiprocessing
 import daemon
-import lockfile
+import daemon.pidfile
+import signal
+#import lockfile
 import psutil
 import signal
 import yaml
@@ -163,6 +165,8 @@ def setup_logging(loglevel):
     logging.basicConfig(level=loglevel, stream=sys.stdout,
                         format=logformat, datefmt="%Y-%m-%d %H:%M:%S")
 
+def shutdown(signum, frame):
+    sys.exit(0)
 
 def main(args):
     """Main entry point allowing external calls
@@ -199,7 +203,12 @@ def main(args):
         context = daemon.DaemonContext(
             #working_directory='/var/lib/psman',
             #umask=0o002,
-            pidfile=lockfile.FileLock('/var/run/psman.pid'),
+            #pidfile=lockfile.FileLock('/var/run/psman.pid'),
+            signal_map={
+                signal.SIGTERM: shutdown,
+                signal.SIGTSTP: shutdown
+                },
+            pidfile=daemon.pidfile.PIDLockFile('/var/run/psman.pid'),
             )
         
         #context.signal_map = {
