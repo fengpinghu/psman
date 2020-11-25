@@ -39,7 +39,7 @@ def kill_process(pstable, pid):
     if ps_pgid in pstable.keys():
         killpg = True
         pidtokill = ps_pgid
-        cputime_total = sum(v[5] for k, v in pstable.iteritems() if v[3] == ps_pgid)
+        cputime_total = sum(v[5] for k, v in pstable.items() if v[3] == ps_pgid)
     else:
         cputime_total = ps_time
 
@@ -108,7 +108,7 @@ def get_pstable(exemptUsers=[], exeps=[], exeps_parent=[]):
     process = subprocess.Popen(['ps', '-eo', "user,pid,ppid,pgid,rss,time,thcount,comm"],
                                stdout=subprocess.PIPE)
     for ps in process.stdout.readlines():
-
+        ps = ps.decode("utf-8")
         ps_a = [x.strip() for x in re.sub(r'\s+', ' ', ps).split(' ', 7)]
         (ps_uid, ps_pid, ps_ppid, ps_pgid, ps_rss, ps_time, ps_thc, ps_comm) = \
                 tuple(ps_a)
@@ -128,11 +128,11 @@ def get_pstable(exemptUsers=[], exeps=[], exeps_parent=[]):
 
 
     # keep only ldap users
-    pstable = {k:v  for (k, v) in pstable_raw.iteritems()
+    pstable = {k:v  for (k, v) in pstable_raw.items()
                if (is_ldap_user(v[UID]) and
                    v[UID] not in exemptUsers)
               }
     # filter out exempted processes
-    pstable_e = {k:v  for (k, v) in pstable.iteritems()
+    pstable_e = {k:v  for (k, v) in pstable.items()
                  if not (is_exempted_ps(pstable_raw, exeps, exeps_parent, k))
                 }

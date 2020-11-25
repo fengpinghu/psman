@@ -25,6 +25,7 @@ def get_pstable(t):
         ['/usr/sbin/iotop', '-n', '2', '-o', '-b', '-d', str(t), '-P', '-k', '-qqq'],
         stdout=subprocess.PIPE)
     for ps in process.stdout.readlines():
+        ps = ps.decode("utf-8")
         ps = ps.strip()
         #print (ps)
         ps_a = [x.strip() for x in re.sub(r'\s+', ' ', ps).split(' ', 11)]

@@ -5,7 +5,7 @@
 """
 
 import subprocess
-
+import shlex
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -31,6 +31,12 @@ def notification(text,
     s = smtplib.SMTP(smtpHost)
     s.sendmail(From, rcpt, msg.as_string())
     s.quit()
+
+def sys_cmd(cmd_line):
+    args = shlex.split(cmd_line)
+    p = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    output, err = p.communicate()
+    return (p.returncode, output.decode("utf-8"), err.decode("utf-8"))
 
 
 def get_group_members(grp):
