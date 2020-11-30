@@ -194,8 +194,8 @@ def main(args):
 
     setup_logging(args.loglevel)
 
-    #_logger.debug("arguments: %s", args)
-    print("arguments: %s", args)
+    _logger.debug("arguments: %s", args)
+    #print("arguments: %s", args)
     cfg_file = {}
     try:
         with open(args.configfile, 'r') as ymlfile:
