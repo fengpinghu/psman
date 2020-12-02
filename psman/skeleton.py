@@ -91,9 +91,9 @@ def get_parser():
     group1 = parser.add_argument_group('worker node', 'worker node arguments')
     group2 = parser.add_argument_group('login node', 'login node arguments')
     group1.add_argument(
-        '--idle-thold',
-        dest="n",
-        help="idle threshold in seconds",
+        '--elps',
+        #dest="n",
+        help="elapsed time threshold in seconds",
         default=100,
         type=int)
     group2.add_argument(
@@ -189,7 +189,9 @@ def main(args):
         from psman import netio
         from psman import login_node
 
-    cfg = {"logfile": "/tmp/psman.log"
+    cfg = {"logfile": "/var/log/psman.log",
+           "msg_from": "psman",
+           "msg_subj": "psman notification",
           }
 
     setup_logging(args.loglevel)

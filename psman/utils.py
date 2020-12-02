@@ -34,9 +34,13 @@ def notification(text,
 
 def sys_cmd(cmd_line):
     args = shlex.split(cmd_line)
-    p = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    output, err = p.communicate()
-    return (p.returncode, output.decode("utf-8"), err.decode("utf-8"))
+    try:
+        p = subprocess.Popen(args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    except Exception as e:
+        return (1, "", e)
+    else:
+        output, err = p.communicate()
+        return (p.returncode, output.decode("utf-8"), err.decode("utf-8"))
 
 
 def get_group_members(grp):
